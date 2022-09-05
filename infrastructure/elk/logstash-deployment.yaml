@@ -1,0 +1,129 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash.conf
+  namespace: mall-swarm
+data:
+  custom.properties: |-
+    input {
+      tcp {
+        mode => "server"
+        host => "0.0.0.0"
+        port => 4560
+        codec => json_lines
+        type => "debug"
+      }
+      tcp {
+        mode => "server"
+        host => "0.0.0.0"
+        port => 4561
+        codec => json_lines
+        type => "error"
+      }
+      tcp {
+        mode => "server"
+        host => "0.0.0.0"
+        port => 4562
+        codec => json_lines
+        type => "business"
+      }
+      tcp {
+        mode => "server"
+        host => "0.0.0.0"
+        port => 4563
+        codec => json_lines
+        type => "record"
+      }
+    }
+    filter{
+      if [type] == "record" {
+        mutate {
+          remove_field => "port"
+          remove_field => "host"
+          remove_field => "@version"
+        }
+        json {
+          source => "message"
+          remove_field => ["message"]
+        }
+      }
+    }
+    output {
+      elasticsearch {
+        hosts => "es-cluster-0.elasticsearch.mall-swarm.svc.cluster.local:9200"
+        index => "mall-%{type}-%{+YYYY.MM.dd}"
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash
+  namespace: mall-swarm
+  labels:
+    app: logstash
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logstash
+  template:
+    metadata:
+      labels:
+        app: logstash
+    spec:
+      containers:
+        - name: logstash
+          image: goharbor.com/devops/logstash:7.17.3
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+          ports:
+            - containerPort: 4560
+              name: collector-4560
+              protocol: TCP
+            - containerPort: 4561
+              name: collector-4561
+              protocol: TCP
+            - containerPort: 4562
+              name: collector-4562
+              protocol: TCP
+            - containerPort: 4563
+              name: collector-4563
+              protocol: TCP
+          resources:
+            limits:
+              cpu: "500m"
+              memory: 512Mi
+            requests:
+              cpu: "100m"
+              memory: 200Mi
+          volumeMounts:
+            - name: logstash-conf
+              mountPath: /usr/share/logstash/pipeline
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: logstash-conf
+          configMap:
+            name: logstash.conf
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: logstash
+  namespace: mall-swarm
+  labels:
+    app: logstash
+spec:
+  selector:
+    app: logstash
+  ports:
+    - port: 4560
+      name: collector-4560
+    - port: 4561
+      name: collector-4561
+    - port: 4562
+      name: collector-4562
+    - port: 4563
+      name: collector-4563

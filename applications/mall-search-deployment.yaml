@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mall-search
+  namespace: mall-swarm
+  labels:
+    app: mall-search
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mall-search
+  template:
+    metadata:
+      labels:
+        app: mall-search
+    spec:
+      containers:
+        - name: mall-search
+          # 指定Docker Hub中的镜像地址
+          image: goharbor.com/mall-swarm/mall-search:latest
+          resources:
+            limits:
+              cpu: "500m"
+              memory: 500Mi
+            requests:
+              cpu: "100m"
+              memory: 100Mi
+          ports:
+            - containerPort: 8081
+          env:
+            # 指定环境
+            - name: spring.profiles.active
+              value: prod
+            # 指定时区
+            - name: TZ
+              value: Asia/Shanghai
+            # 指定Nacos地址
+            - name: spring.cloud.nacos.discovery.server-addr
+              value: http://nacos-0.nacos-headless.default:8848
+            - name: spring.cloud.nacos.config.server-addr
+              value: http://nacos-0.nacos-headless.default:8848
+      #     volumeMounts:
+      #       - mountPath: /var/logs
+      #         name: log-volume
+      # volumes:
+      #   - name: log-volume
+      #     hostPath:
+      #       path: /mydata/app/mall-search/logs
+      #       type: DirectoryOrCreate

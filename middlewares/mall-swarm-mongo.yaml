@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo
+  namespace: mall-swarm
+spec:
+  selector:
+    matchLabels:
+      app: mongo
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      containers:
+        - name: mall-swarm-mongo
+          image: goharbor.com/devops/mongo:4
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+            requests:
+              cpu: 500m
+              memory: 100Mi
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 27017
+              name: mongo-port
+          volumeMounts:
+            - name: swarm-mongo
+              mountPath: /var/lib/mongo
+      volumes:
+        - name: swarm-mongo
+          hostPath:
+            path: /var/lib/swarm/mongo
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+  namespace: mall-swarm
+  labels:
+    name: mongo
+spec:
+  ports:
+    - port: 27017
+      targetPort: 27017
+      name: "mongo"
+  selector:
+    app: mongo

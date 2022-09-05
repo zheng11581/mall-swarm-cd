@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: mall-swarm
+spec:
+  selector:
+    matchLabels:
+      app: rabbitmq
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+        - name: mall-swarm-rabbitmq
+          image: goharbor.com/devops/rabbitmq:3.9-management
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+            requests:
+              cpu: 500m
+              memory: 100Mi
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5672
+              name: rabbitmq-serve
+            - containerPort: 15672
+              name: rabbitmq-manage
+          volumeMounts:
+            - name: swarm-rabbitmq
+              mountPath: /var/lib/rabbitmq
+      volumes:
+        - name: swarm-rabbitmq
+          hostPath:
+            path: /var/lib/swarm/rabbitmq
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: mall-swarm
+  labels:
+    name: rabbitmq
+spec:
+  ports:
+    - port: 5672
+      targetPort: 5672
+      name: "rabbitmq-serve"
+    - port: 15672
+      targetPort: 15672
+      name: "rabbitmq-manage"
+  selector:
+    app: rabbitmq

@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: es-cluster
+  namespace: mall-swarm
+spec:
+  serviceName: elasticsearch
+  replicas: 3
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      containers:
+        - name: elasticsearch
+          image: goharbor.com/devops/elasticsearch:7.17.3
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              cpu: 1000m
+            requests:
+              cpu: 100m
+          ports:
+            - containerPort: 9200
+              name: es-serve
+              protocol: TCP
+            - containerPort: 9300
+              name: es-manage
+              protocol: TCP
+          volumeMounts:
+            - name: es-storage
+              mountPath: /usr/share/elasticsearch/data
+              subPath: data
+            - name: es-storage
+              mountPath: /usr/share/elasticsearch/plugins
+              subPath: plugins
+          env:
+            - name: cluster.name
+              value: elasticsearch
+            - name: node.name
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: discovery.seed_hosts
+              value: "es-cluster-0.elasticsearch.mall-swarm.svc.cluster.local,es-cluster-1.elasticsearch.mall-swarm.svc.cluster.local,es-cluster-2.elasticsearch.mall-swarm.svc.cluster.local"
+            - name: cluster.initial_master_nodes
+              value: "es-cluster-0,es-cluster-1,es-cluster-2"
+            - name: ES_JAVA_OPTS
+              value: "-Xms1024m -Xmx1024m"
+      initContainers:
+        - name: fix-permissions
+          image: busybox
+          imagePullPolicy: IfNotPresent
+          command:
+            ["sh", "-c", "chown -R 1000:1000 /usr/share/elasticsearch/data"]
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: es-storage
+              mountPath: /usr/share/elasticsearch/data
+              subPath: data
+        - name: increase-vm-max-map
+          image: busybox
+          imagePullPolicy: IfNotPresent
+          command: ["sysctl", "-w", "vm.max_map_count=262144"]
+          securityContext:
+            privileged: true
+        - name: increase-fd-ulimit
+          image: busybox
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "ulimit -n 65536"]
+          securityContext:
+            privileged: true
+  volumeClaimTemplates:
+    - metadata:
+        name: es-storage
+        labels:
+          app: elasticsearch
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: nfs
+        resources:
+          requests:
+            storage: 10Gi
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: elasticsearch
+  namespace: mall-swarm
+  labels:
+    app: elasticsearch
+spec:
+  selector:
+    app: elasticsearch
+  clusterIP: None
+  ports:
+    - port: 9200
+      name: es-serve
+    - port: 9300
+      name: es-manage

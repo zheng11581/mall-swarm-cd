@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mall-admin-web
+  namespace: mall-swarm
+  labels:
+    app: mall-admin-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mall-admin-web
+  template:
+    metadata:
+      labels:
+        app: mall-admin-web
+    spec:
+      containers:
+        - name: mall-admin-web
+          # 指定Docker Hub中的镜像地址
+          image: goharbor.com/mall-swarm/mall-admin-web:latest
+          resources:
+            limits:
+              cpu: "500m"
+              memory: 1000Mi
+            requests:
+              cpu: "100m"
+              memory: 500Mi
+          ports:
+            - containerPort: 80

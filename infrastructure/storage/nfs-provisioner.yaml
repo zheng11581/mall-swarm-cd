@@ -1,0 +1,43 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: nfs-provisioner
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: nfs-provisioner
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: nfs-provisioner
+    spec:
+      serviceAccount: nfs-provisioner
+      containers:
+        - name: nfs-provisioner
+          image: zheng11581/nfs-provisioner:v4.0.0
+          resources:
+            limits:
+              cpu: 500m
+              memory: 500Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          volumeMounts:
+            - name: nfs-provisioner
+              mountPath: /persistentvolumes
+          env:
+            - name: PROVISIONER_NAME
+              value: example.com/nfs
+            - name: NFS_SERVER
+              value: <nfs_host>
+            - name: NFS_PATH
+              value: <nfs_path>
+      volumes:
+        - name: nfs-provisioner
+          nfs:
+            server: <nfs_host>
+            path: <nfs_path>

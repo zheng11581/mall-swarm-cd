@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: mall-swarm
+spec:
+  selector:
+    matchLabels:
+      app: redis
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: mall-swarm-redis
+          image: goharbor.com/devops/redis:7
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+            requests:
+              cpu: 500m
+              memory: 100Mi
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 6379
+              name: redis-port
+          volumeMounts:
+            - name: swarm-redis
+              mountPath: /var/lib/redis
+      volumes:
+        - name: swarm-redis
+          hostPath:
+            path: /var/lib/swarm/redis
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: mall-swarm
+  labels:
+    name: redis
+spec:
+  ports:
+    - port: 6379
+      targetPort: 6379
+      name: "redis"
+  selector:
+    app: redis
